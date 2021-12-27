@@ -1,0 +1,53 @@
+version: "3.9"
+services:
+  sqlserver_dev_a:
+    container_name: sqlserver_dev_a
+    image: "mcr.microsoft.com/mssql/server:2019-latest"
+    ports:
+      - "1433:1433"
+    volumes:
+      - D:\DEV\Docker\SQLSERVER_DEV_A:/var/opt/mssql/data
+    environment:
+      SA_PASSWORD: "Segredinho#@"
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+    networks:
+      - docker_net_a
+  
+  nifi_dev_a:
+    container_name: nifi_dev_a
+    image: "apache/nifi:latest"
+    ports:
+      - "8443:8443"
+    volumes:
+      # mkdir /var/lib/nifi && chown -R 1000:1000 /var/lib/nifi
+      - D:\DEV\Docker\NIFI_DEV_A/database_repository:/opt/nifi/nifi-current/database_repository
+      - D:\DEV\Docker\NIFI_DEV_A/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - D:\DEV\Docker\NIFI_DEV_A/content_repository:/opt/nifi/nifi-current/content_repository
+      - D:\DEV\Docker\NIFI_DEV_A/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - D:\DEV\Docker\NIFI_DEV_A/state:/opt/nifi/nifi-current/state
+      - D:\DEV\Docker\NIFI_DEV_A/logs:/opt/nifi/nifi-current/logs
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=ctsBtRBKHRAx69EqUghvv
+    networks:
+      - docker_net_a
+
+  rabbitmq_dev_a:    
+    container_name: 'rabbitmq_dev_a'
+    image: rabbitmq:3.9.11-management
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin  
+    volumes:
+      - D:\DEV\Docker\RABBITMQ_DEV_A/data/:/var/lib/rabbitmq/
+      - D:\DEV\Docker\RABBITMQ_DEV_A/log/:/var/log/rabbitmq
+    networks:
+      - docker_net_a
+
+networks:
+  docker_net_a:
+    driver: bridge
