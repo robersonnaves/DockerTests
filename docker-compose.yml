@@ -1,6 +1,6 @@
 services:
   portainer:
-    container_name: portainer_dev_a
+    container_name: portainer
     image: portainer/portainer-ce:latest
     restart: unless-stopped
     security_opt:
@@ -11,6 +11,26 @@ services:
       - ./volume_dev_a/PORTAINER_DEV_A/portainer-data:/data
     ports:
       - 9000:9000
+    networks:
+      - net_dev_a
+
+  yacht:
+    container_name: yacht
+    image: selfhostedpro/yacht:devel
+    restart: unless-stopped
+    ports:
+      - 8000:8000
+    volumes:
+      - ./volume_dev_a/YACHT_DEV_A/config:/config
+      - ./volume_dev_a/YACHT_DEV_A/compose:/compose
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      # Sem autenticação (abaixo) (login padrão: admin@yacht.local // pass)
+      - DISABLE_AUTH
+      - ADMIN_EMAIL=admin@yacht.local
+      - PUID=0
+      - PGID=0
+      - COMPOSE_DIR=/compose
     networks:
       - net_dev_a
 
@@ -86,13 +106,16 @@ services:
     networks:
       - net_dev_a
 
-  elasticsearch:
+  elasticsearch_dev_a:
     container_name: elasticsearch_dev_a
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.1.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
     environment:
       discovery.type: "single-node"
       ES_JAVA_OPTS: "-Xms2g -Xmx2g"
-      xpack.monitoring.templates.enabled: "true"
+      # Para versão 8.2.0 (abaixo)
+      # xpack.monitoring.templates.enabled: "true"
+      # Para versão 7.9.2 (abaixo)
+      xpack.watcher.enabled: "false"
       xpack.security.enabled: "false"
     ports:
       - "9200:9200"
@@ -100,11 +123,13 @@ services:
     networks:
       - net_dev_a
 
-  kibana:
+  kibana_dev_a:
     container_name: kibana_dev_a
-    image: docker.elastic.co/kibana/kibana:8.1.0
+    image: docker.elastic.co/kibana/kibana:7.9.2
     environment:
       ELASTICSEARCH_URL: http://elasticsearch_dev_a:9200
+    volumes:
+      - ./volume_dev_a/ELASTICSEARCH_DEV_A/data/:/usr/share/elasticsearch/data
     ports:
       - "5601:5601"
     networks:
