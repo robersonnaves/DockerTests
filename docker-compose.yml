@@ -1,31 +1,30 @@
 services:
   portainer:
     container_name: portainer
-    image: portainer/portainer-ce:latest
+    image: 'portainer/portainer-ce:latest'
     restart: unless-stopped
     security_opt:
-      - no-new-privileges:true
+      - 'no-new-privileges:true'
     volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./volume_dev_a/PORTAINER_DEV_A/portainer-data:/data
+      - '/etc/localtime:/etc/localtime:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - './volume_dev_a/PORTAINER_DEV_A/portainer-data:/data'
     ports:
-      - 9000:9000
+      - '9000:9000'
     networks:
       - net_dev_a
 
   yacht:
     container_name: yacht
-    image: selfhostedpro/yacht:devel
+    image: 'selfhostedpro/yacht:devel'
     restart: unless-stopped
     ports:
-      - 8000:8000
+      - '8000:8000'
     volumes:
-      - ./volume_dev_a/YACHT_DEV_A/config:/config
-      - ./volume_dev_a/YACHT_DEV_A/compose:/compose
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - './volume_dev_a/YACHT_DEV_A/config:/config'
+      - './volume_dev_a/YACHT_DEV_A/compose:/compose'
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
     environment:
-      # Sem autenticação (abaixo) (login padrão: admin@yacht.local // pass)
       - DISABLE_AUTH
       - ADMIN_EMAIL=admin@yacht.local
       - PUID=0
@@ -36,15 +35,23 @@ services:
 
   sqlserver_dev_a:
     container_name: sqlserver_dev_a
-    image: "mcr.microsoft.com/mssql/server:2019-latest"
+    image: 'mcr.microsoft.com/mssql/server:2019-latest'
     volumes:
-      - ./volume_dev_a/SQLSERVER_DEV_A:/var/opt/mssql/data
+      - './volume_dev_a/SQLSERVER_DEV_A:/var/opt/mssql/data'
     environment:
-      SA_PASSWORD: "S3gr3d0#@"
-      ACCEPT_EULA: "Y"
+      SA_PASSWORD: 'S3gr3d0#@'
+      ACCEPT_EULA: 'Y'
       MSSQL_PID: Developer
     ports:
-      - "1433:1433"
+      - '1433:1433'
+    networks:
+      - net_dev_a
+
+  mssqlscripts:
+    image: mcr.microsoft.com/mssql-tools
+    depends_on:
+      - sqlserver_dev_a
+    command: /bin/bash -c 'until /opt/mssql-tools/bin/sqlcmd -S sqlserver_dev_a -U sa -P "S3gr3d0#@" -Q "create database Keycloak"; do sleep 5; done'
     networks:
       - net_dev_a
 
@@ -52,10 +59,10 @@ services:
     container_name: mysql_dev_a
     image: mysql
     ports:
-      - "3306:3306"
-    command: mysqld --authentication-policy=mysql_native_password --skip-mysqlx --lower_case_table_names=1 --default-time-zone=+00:00
+      - '3306:3306'
+    command: 'mysqld --authentication-policy=mysql_native_password --skip-mysqlx --lower_case_table_names=1 --default-time-zone=+00:00'
     environment:
-      MYSQL_ROOT_PASSWORD: rootpwd#@
+      MYSQL_ROOT_PASSWORD: 'rootpwd#@'
       MYSQL_USER: dbadmin
       MYSQL_PASSWORD: dbadmin
       MYSQL_DATABASE: dbgestao
@@ -69,69 +76,88 @@ services:
     depends_on:
       - mysql_dev_a
     ports:
-      - 8080:8080
+      - '8080:8080'
     networks:
       - net_dev_a
 
   nifi_dev_a:
     container_name: nifi_dev_a
-    image: "apache/nifi:latest"
+    image: 'apache/nifi:latest'
     volumes:
-      - ./volume_dev_a/NIFI_DEV_A/database_repository:/opt/nifi/nifi-current/database_repository
-      - ./volume_dev_a/NIFI_DEV_A/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
-      - ./volume_dev_a/NIFI_DEV_A/content_repository:/opt/nifi/nifi-current/content_repository
-      - ./volume_dev_a/NIFI_DEV_A/provenance_repository:/opt/nifi/nifi-current/provenance_repository
-      - ./volume_dev_a/NIFI_DEV_A/state:/opt/nifi/nifi-current/state
-      - ./volume_dev_a/NIFI_DEV_A/logs:/opt/nifi/nifi-current/logs
+      - './volume_dev_a/NIFI_DEV_A/database_repository:/opt/nifi/nifi-current/database_repository'
+      - './volume_dev_a/NIFI_DEV_A/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository'
+      - './volume_dev_a/NIFI_DEV_A/content_repository:/opt/nifi/nifi-current/content_repository'
+      - './volume_dev_a/NIFI_DEV_A/provenance_repository:/opt/nifi/nifi-current/provenance_repository'
+      - './volume_dev_a/NIFI_DEV_A/state:/opt/nifi/nifi-current/state'
+      - './volume_dev_a/NIFI_DEV_A/logs:/opt/nifi/nifi-current/logs'
     environment:
       - SINGLE_USER_CREDENTIALS_USERNAME=admin
       - SINGLE_USER_CREDENTIALS_PASSWORD=ctsBtRBKHRAx69EqUghvv
     ports:
-      - "8443:8443"
+      - '8443:8443'
+    networks:
+      - net_dev_a
+
+  keycloak:
+    # image: quay.io/keycloak/keycloak:latest
+    image: jboss/keycloak:latest
+    depends_on:
+      - sqlserver_dev_a
+      - mssqlscripts
+    ports:
+      - "8080:8080"
+    environment:
+      - KEYCLOAK_USER=admin
+      - KEYCLOAK_PASSWORD=admin
+      - DB_VENDOR=mssql
+      - DB_USER=sa
+      - DB_PASSWORD=S3gr3d0#@
+      - DB_ADDR=sqlserver_dev_a
+      - DB_DATABASE=Keycloak
+      - ROOT_LOGLEVEL=DEBUG
     networks:
       - net_dev_a
 
   rabbitmq_dev_a:
-    container_name: 'rabbitmq_dev_a'
-    image: rabbitmq:3.9.13-management
+    container_name: rabbitmq_dev_a
+    image: 'rabbitmq:3.9.13-management'
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin
     volumes:
-      - ./volume_dev_a/RABBITMQ_DEV_A/data/:/var/lib/rabbitmq/
-      - ./volume_dev_a/RABBITMQ_DEV_A/log/:/var/log/rabbitmq
+      - './volume_dev_a/RABBITMQ_DEV_A/data/:/var/lib/rabbitmq/'
+      - './volume_dev_a/RABBITMQ_DEV_A/log/:/var/log/rabbitmq'
     ports:
-      - 5672:5672
-      - 15672:15672
+      - '5672:5672'
+      - '15672:15672'
     networks:
       - net_dev_a
 
   elasticsearch_dev_a:
     container_name: elasticsearch_dev_a
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
+    image: 'docker.elastic.co/elasticsearch/elasticsearch:7.9.2'
     environment:
-      discovery.type: "single-node"
-      ES_JAVA_OPTS: "-Xms2g -Xmx2g"
-      # Para versão 8.2.0 (abaixo)
-      # xpack.monitoring.templates.enabled: "true"
-      # Para versão 7.9.2 (abaixo)
-      xpack.watcher.enabled: "false"
-      xpack.security.enabled: "false"
+      discovery.type: single-node
+      ES_JAVA_OPTS: '-Xms2g -Xmx2g'
+      xpack.watcher.enabled: 'false'
+      xpack.security.enabled: 'false'
     ports:
-      - "9200:9200"
-      - "9300:9300"
+      - '9200:9200'
+      - '9300:9300'
     networks:
       - net_dev_a
 
   kibana_dev_a:
     container_name: kibana_dev_a
-    image: docker.elastic.co/kibana/kibana:7.9.2
+    image: 'docker.elastic.co/kibana/kibana:7.9.2'
+    depends_on:
+      - elasticsearch_dev_a
     environment:
-      ELASTICSEARCH_URL: http://elasticsearch_dev_a:9200
+      ELASTICSEARCH_URL: 'http://elasticsearch_dev_a:9200'
     volumes:
-      - ./volume_dev_a/ELASTICSEARCH_DEV_A/data/:/usr/share/elasticsearch/data
+      - './volume_dev_a/ELASTICSEARCH_DEV_A/data/:/usr/share/elasticsearch/data'
     ports:
-      - "5601:5601"
+      - '5601:5601'
     networks:
       - net_dev_a
 
